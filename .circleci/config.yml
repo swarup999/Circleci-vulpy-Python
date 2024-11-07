@@ -32,8 +32,8 @@ jobs:
               -H "Client-Secret: $INTRUCEPT_CLIENT_SECRET" \
               -F "projectZipFile=@project.zip" \
               -F "applicationId=$INTRUCEPT_APPLICATION_ID" \
-              -F "scanName=React App SAST Scan from CircleCI" \
-              -F "language=javascript" \
+              -F "scanName=Python App SAST Scan from CircleCI" \
+              -F "language=python" \
               https://appsecops-api.intruceptlabs.com/api/v1/integrations/sast-scans)
             
             SAST_CAN_PROCEED=$(echo $SAST_RESPONSE | jq -r '.canProceed')
@@ -56,8 +56,8 @@ jobs:
               -H "Client-Secret: $INTRUCEPT_CLIENT_SECRET" \
               -F "projectZipFile=@project.zip" \
               -F "applicationId=$INTRUCEPT_APPLICATION_ID" \
-              -F "scanName=React App SCA Scan from CircleCI" \
-              -F "language=javascript" \
+              -F "scanName=python App SCA Scan from CircleCI" \
+              -F "language=python" \
               https://appsecops-api.intruceptlabs.com/api/v1/integrations/sca-scans)
             
             SCA_CAN_PROCEED=$(echo $SCA_RESPONSE | jq -r '.canProceed')
