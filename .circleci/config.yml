@@ -27,7 +27,9 @@ jobs:
           command: |
             echo "Starting SAST Scan..."
             set +e # Allow pipeline to continue even if this command fails
-            SAST_RESPONSE=$(curl -X POST \
+
+            # Make the API request
+            SAST_RESPONSE=$(curl -s -o response.json -w "%{http_code}" -X POST \
               -H "Client-ID: $INTRUCEPT_CLIENT_ID" \
               -H "Client-Secret: $INTRUCEPT_CLIENT_SECRET" \
               -F "projectZipFile=@project.zip" \
@@ -35,13 +37,24 @@ jobs:
               -F "scanName=Python App SAST Scan from CircleCI" \
               -F "language=python" \
               https://appsecops-api.intruceptlabs.com/api/v1/integrations/sast-scans)
-            
-            SAST_CAN_PROCEED=$(echo $SAST_RESPONSE | jq -r '.canProceed')
-            SAST_VULNS_TABLE=$(echo $SAST_RESPONSE | jq -r '.vulnsTable')
-            
+
+            HTTP_CODE=$(tail -n1 <<< "$SAST_RESPONSE")
+            SAST_RESPONSE_BODY=$(cat response.json)
+
+            # Check for a successful status code (e.g., 200)
+            if [ "$HTTP_CODE" -ne 200 ]; then
+              echo "Error: Received HTTP $HTTP_CODE from SAST API"
+              echo "Response body: $SAST_RESPONSE_BODY"
+              exit 1
+            fi
+
+            # Parse JSON if valid
+            SAST_CAN_PROCEED=$(echo "$SAST_RESPONSE_BODY" | jq -r 'try .canProceed // empty')
+            SAST_VULNS_TABLE=$(echo "$SAST_RESPONSE_BODY" | jq -r 'try .vulnsTable // empty')
+
             echo "Vulnerabilities found during SAST:"
             echo "$SAST_VULNS_TABLE"
-            
+
             if [ "$SAST_CAN_PROCEED" != "true" ]; then
               echo "SAST scan failed. Continuing to SCA scan, but deployment may be cancelled."
             fi
@@ -51,21 +64,32 @@ jobs:
           name: Perform SCA scan
           command: |
             echo "Starting SCA Scan..."
-            SCA_RESPONSE=$(curl -X POST \
+            SCA_RESPONSE=$(curl -s -o response.json -w "%{http_code}" -X POST \
               -H "Client-ID: $INTRUCEPT_CLIENT_ID" \
               -H "Client-Secret: $INTRUCEPT_CLIENT_SECRET" \
               -F "projectZipFile=@project.zip" \
               -F "applicationId=$INTRUCEPT_APPLICATION_ID" \
-              -F "scanName=python App SCA Scan from CircleCI" \
+              -F "scanName=Python App SCA Scan from CircleCI" \
               -F "language=python" \
               https://appsecops-api.intruceptlabs.com/api/v1/integrations/sca-scans)
-            
-            SCA_CAN_PROCEED=$(echo $SCA_RESPONSE | jq -r '.canProceed')
-            SCA_VULNS_TABLE=$(echo $SCA_RESPONSE | jq -r '.vulnsTable')
-            
+
+            HTTP_CODE=$(tail -n1 <<< "$SCA_RESPONSE")
+            SCA_RESPONSE_BODY=$(cat response.json)
+
+            # Check for a successful status code (e.g., 200)
+            if [ "$HTTP_CODE" -ne 200 ]; then
+              echo "Error: Received HTTP $HTTP_CODE from SCA API"
+              echo "Response body: $SCA_RESPONSE_BODY"
+              exit 1
+            fi
+
+            # Parse JSON if valid
+            SCA_CAN_PROCEED=$(echo "$SCA_RESPONSE_BODY" | jq -r 'try .canProceed // empty')
+            SCA_VULNS_TABLE=$(echo "$SCA_RESPONSE_BODY" | jq -r 'try .vulnsTable // empty')
+
             echo "Vulnerabilities found during SCA:"
             echo "$SCA_VULNS_TABLE"
-            
+
             if [ "$SCA_CAN_PROCEED" != "true" ]; then
               echo "SCA scan failed. Deployment cancelled."
               exit 1
